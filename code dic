@@ -1,0 +1,3 @@
+##버전확인##
+from tensorflow import keras
+keras.__vedrsion__
