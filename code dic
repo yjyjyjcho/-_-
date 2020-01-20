@@ -1,3 +1,5 @@
 ##버전확인##
 from tensorflow import keras
-keras.__vedrsion__
+keras.__version__
+
+##
