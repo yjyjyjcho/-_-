@@ -1,0 +1,94 @@
+# skmem.MemReducer
+# Smart memory reduction for pandas.
+
+# A transformer to quickly reduce dataframe memory by converting memory-hungry
+# dtypes to ones needing less memory. Advantages include:
+#     - Fully compatible with scikit-learn. Easy to integrate with other 
+#       transformers and pipelines.
+#     - Preserves data integrity. Set simple parameters to control
+#       treatment of floats and objects.
+#     - Easy to customize. Use class inheritance or directly change modular
+#       functions as needed.
+#     - Efficient. Save time with vectorized functions that process data
+#       faster than most parallelized solutions.
+
+# The latest version includes transformation to pandas nullable integer types. 
+# By default, pandas read functions will cast columns as float64 if there are null
+# values, even if the values present are integers. The new data types Int64,
+# Int32, etc. can be used in columns with null values to save memory. Transforming
+# columns to nullable types is optional since some packages don't handle them.
+
+# The main() function below has examples using Kaggle datasets. See the log 
+# for results.
+
+
+import numpy as np
+import pandas as pd
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.utils import validation
+
+
+class MemReducer(BaseEstimator, TransformerMixin):
+    """ Converts dataframe columns to dtypes requiring less memory. Returns a
+    dataframe with memory-efficient dtypes where possible.
+
+    Integers, 64-bit floats and objects/strings can be converted.
+    Parameters provide control for treatment of floats and objects.
+
+    Parameters
+    ___________
+    max_unique_pct : float, optional, default=0.5
+        Sets maximum threshold for converting object columns to categoricals.
+        Threshold is compared to the number of unique values as a percent of
+        column length. 0.0 prevents all conversions and 1.0 allows all
+        conversions.
+
+    nullables: boolean, optional, default=True
+        Specifies whether to convert float columns with all whole numbers and
+        null values into pandas nullable integers.
+
+    Example
+    --------
+    >>> import skmem
+    >>> df = pd.DataFrame({'cat': np.tile(['a', 'b'], 500_000),
+                'true_int': np.tile(np.arange(-5, 5), 100_000),
+                'float': np.arange(0., 1_000_000.),
+                'nullable': np.tile([np.nan, 1, 1, 2, 3], 200_000)
+                })
+    >>> print(df.dtypes)
+
+    |cat     object
+    |true_int    int64
+    |float    float64
+    |nullable    float64
+    |dtype: object
+    
+    >>> mr = skmem.MemReducer(max_unique_pct=0.8)
+    >>> df_small = mr.fit_transform(df, float_cols=['float'])
+
+    |Getting memory usage.
+    |Memory in: 85.83 MB
+    |Starting integers.
+    |Downcast 1 standard integer columns.
+    |Starting floats.
+    |Downcast 1 float columns.
+    |Starting objects.
+    |Converted 1 columns to categories.
+    |Starting nullables.
+    |Converted 1 columns to nullable types.
+    |Memory out: 7.63 MB Reduction: 91.1%
+    
+    >>> print(df_small.dtypes)
+
+    |cat      category
+    |true_int    int8
+    |float     float32
+    |nullable    Int8
+    |dtype: object
+
+
+    Notes
+    -----
+    Downcasting to float dtypes below 32-bits (np.float16, np.float8)
+    is not supported.
+    """
